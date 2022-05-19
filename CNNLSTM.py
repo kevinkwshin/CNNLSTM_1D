@@ -124,7 +124,7 @@ class DenseNetFeature(nn.Module):
         return x1,x2,x3,x4
 
 class CNNLSTM_1D(torch.nn.Module):
-    def __init__(self, spatial_dims=1, in_channels=1, num_classes=1):
+    def __init__(self, spatial_dims=1, in_channels=1, num_classes=1, encoderStateDictPath=None):
         super(CNNLSTM_1D, self).__init__()        
         
         # Feature Extraction
@@ -136,6 +136,11 @@ class CNNLSTM_1D(torch.nn.Module):
                                                                   in_channels=in_channels,
                                                                   norm= 'batch',
                                                                   num_classes=1000)
+        if encoderStateDictPath:
+            weight = torch.load(encoderStateDictPath)
+            self.encoder.load_state_dict(weight,strict=False)
+            self.encoder.eval()
+            
         x = torch.rand(2,in_channels,2048)
         feature = self.encoder(x)
         num_channelLastFeature = feature[-1].shape[1] # get num_channelLastFeature, this is also input size of LSTM
