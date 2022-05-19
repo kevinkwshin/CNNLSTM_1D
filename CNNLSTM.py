@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
+import monai
 from monai.networks.layers.factories import Conv, Dropout, Pool
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils.module import look_up_option
@@ -120,24 +121,34 @@ class DenseNetFeature(nn.Module):
         x = self.transition3(x3)
         x = self.layer4(x)
         x4 = self.norm5(x)
-        return x4
+        return x1,x2,x3,x4
 
-class CNNLSTM(torch.nn.Module):
-    def __init__(self):
-        super(CNNLSTM, self).__init__()        
+class CNNLSTM_1D(torch.nn.Module):
+    def __init__(self, spatial_dims=1, in_channels=1, num_classes=1):
+        super(CNNLSTM_1D, self).__init__()        
         
         # Feature Extraction
-        self.encoder = net
+        
+        self.encoder = DenseNetFeature(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=1000, norm=('group',{'num_groups':32}))
+        self.encoder = monai.networks.nets.EfficientNetBNFeatures('efficientnet-b1', 
+                                                                  progress=True, 
+                                                                  spatial_dims=spatial_dims, 
+                                                                  in_channels=in_channels,
+                                                                  norm= 'batch',
+                                                                  num_classes=1000)
+        x = torch.rand(2,in_channels,2048)
+        feature = self.encoder(x)
+        num_channelLastFeature = feature[-1].shape[1] # get num_channelLastFeature, this is also input size of LSTM
         self.pool    = torch.nn.AdaptiveAvgPool1d(1)
         
         # LSTM Classifier
-        self.LSTM    = nn.LSTM(input_size=1024, hidden_size=512, num_layers=2, batch_first=True, bidirectional=True)
+        self.LSTM    = nn.LSTM(input_size=num_channelLastFeature, hidden_size=512, num_layers=2, batch_first=True, bidirectional=True)
         self.fc      = nn.Linear(512*2, 512, True)
         self.relu    = nn.ReLU(True)
-        self.drop    = nn.Dropout(p=0.5)
+        self.drop    = nn.Dropout(p=0.2)
         
         # Head
-        self.head    = nn.Linear(512, 1, True)       
+        self.head    = nn.Linear(512, num_classes, True)       
 
     def forward(self, x, depths): 
         """
@@ -147,7 +158,7 @@ class CNNLSTM(torch.nn.Module):
         # stacking Features 
         encoder_embed_seq = []
         for i in range(x.shape[-1]):
-            out = self.encoder(x[..., i])#.round()        
+            out = self.encoder(x[..., i])[-1]    
             out = self.pool(out)
             out = out.view(out.shape[0], -1)
             encoder_embed_seq.append(out)   
@@ -157,7 +168,7 @@ class CNNLSTM(torch.nn.Module):
         # Classifier, Input = (Batch, Seq, Feat)
         self.LSTM.flatten_parameters()  
         x_packed = pack_padded_sequence(stacked_feat, depths, batch_first=True, enforce_sorted=False)
-        print(x_packed)
+#         print(x_packed) # Check
         RNN_out, (h_n, h_c) = self.LSTM(x_packed, None)    
         fc_input = torch.cat([h_n[-1], h_n[-2]], dim=-1) # Due to the Bi-directional
         x = self.fc(fc_input)
@@ -167,9 +178,18 @@ class CNNLSTM(torch.nn.Module):
         # Head
         x = self.head(x)     
         return x
-    
-net = DenseNetFeature(spatial_dims=1, in_channels=1, out_channels=1, norm=('group',{'num_groups':32}))
-model = CNNLSTM().cuda()
+
+###########################################################################      
+# To use our model, spatial_dims=1, in_channels=1, num_classes=1
+model = CNNLSTM_1D(spatial_dims=1, in_channels=1, num_classes=1).cuda()
+
+x = torch.rand(6,1,2048,8)
+yhat = model(x.cuda(),[7,6,4,6,5,3])
+print(x.shape, yhat.shape)
+
+###########################################################################
+# To use our model, spatial_dims=1, in_channels=1, num_classes=2
+model = CNNLSTM_1D(spatial_dims=1, in_channels=1, num_classes=2).cuda()
 
 x = torch.rand(6,1,2048,8)
 yhat = model(x.cuda(),[7,6,4,6,5,3])
