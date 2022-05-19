@@ -127,6 +127,13 @@ class CNNLSTM_1D(torch.nn.Module):
     def __init__(self, spatial_dims=1, in_channels=1, num_classes=1, encoderStateDictPath=None):
         super(CNNLSTM_1D, self).__init__()        
         
+        """
+        spatial_dims : 1D, now only 1 is available
+        in_channels : input channels
+        num_classes : final output channels after LSTM
+        encoderStateDictPath : If you have pretrained encoder state dict, write here
+        """
+        
         # Feature Extraction
         
         self.encoder = DenseNetFeature(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=1000, norm=('group',{'num_groups':32}))
