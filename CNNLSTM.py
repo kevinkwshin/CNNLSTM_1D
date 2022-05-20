@@ -13,7 +13,7 @@ import monai
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence, pad_sequence
 
 class CNNLSTM(torch.nn.Module):
-    def __init__(self, spatial_dims=1, in_channels=1, num_classes=1, encoderStateDictPath=None):
+    def __init__(self, encoder_name='efficientnet-b0' ,spatial_dims=1, in_channels=1, num_classes=1, encoderStateDictPath=None):
         super(CNNLSTM, self).__init__()        
         
         """
@@ -24,8 +24,7 @@ class CNNLSTM(torch.nn.Module):
         """
         
         # Feature Extraction
-        model_name = 'efficientnet-b0'
-        self.encoder = monai.networks.nets.EfficientNetBNFeatures(model_name, 
+        self.encoder = monai.networks.nets.EfficientNetBNFeatures(encoder_name, 
                                                                   progress=True, 
                                                                   spatial_dims=spatial_dims, 
                                                                   in_channels=in_channels,
