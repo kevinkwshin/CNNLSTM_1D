@@ -1,15 +1,12 @@
-from torch import nn
-from torch.nn import functional as F
-
 import re
 from collections import OrderedDict
 from typing import Callable, Sequence, Type, Union
 
+import monai
+
 import torch
 import torch.nn as nn
-
-import monai
-   
+from torch.nn import functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence, pad_sequence
 
 class CNNLSTM(torch.nn.Module):
@@ -17,7 +14,11 @@ class CNNLSTM(torch.nn.Module):
         super(CNNLSTM, self).__init__()        
         
         """
-        spatial_dims : 1D, now only 1 is available
+        input shape : for spatial dims=1, x should be ( Batch x Channel x Feature x Depth )
+                      for spatial dims=2, x should be ( Batch x Channel x Height x Weight x Depth )
+                      for spatial dims=3, x should be ( Batch x Channel x Height x Weight x Slices x Depth )
+        
+        spatial_dims : type of convolution, [conv1d, conv2d, conv3d]
         in_channels : input channels
         num_classes : final output channels after LSTM
         encoderStateDictPath : If you have pretrained encoder state dict, enter the path of saved state dict, load encoder will be freezed!
