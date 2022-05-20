@@ -1,1 +1,1 @@
-# CNN with LSTM for ND
+# CNN with LSTM for ND with Pytorch
