@@ -9,6 +9,14 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence, pad_sequence
 
+def dfs_freeze(model):
+    for name, child in model.named_children():
+        for param in child.parameters():
+            # print(param)
+            param.requires_grad = False
+            # print(param)
+        dfs_freeze(child)
+
 class CNNLSTM(torch.nn.Module):
     def __init__(self, encoder_name='efficientnet-b0' ,spatial_dims=1, in_channels=1, num_classes=1, encoderStateDictPath=None):
         super(CNNLSTM, self).__init__()        
@@ -34,6 +42,7 @@ class CNNLSTM(torch.nn.Module):
         if encoderStateDictPath:
             weight = torch.load(encoderStateDictPath)
             self.encoder.load_state_dict(weight,strict=False)
+            dfs_freeze(self.encoder)
             self.encoder.eval()
             
         if spatial_dims==1:
